@@ -9,7 +9,14 @@ from flask_bcrypt import Bcrypt
 # -------------------- APP CONFIG --------------------
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'supersecretkey_change_in_production'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///house_price.db'
+
+# Fix for deployment (Render uses PostgreSQL, local uses SQLite)
+database_url = os.getenv("DATABASE_URL")
+if database_url:
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+else:
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///house_price.db'
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -22,13 +29,18 @@ model = None
 encoder = None
 
 try:
-    if os.path.exists('model.pkl') and os.path.exists('encoder.pkl'):
-        with open('model.pkl', 'rb') as f:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    model_path = os.path.join(BASE_DIR, 'model.pkl')
+    encoder_path = os.path.join(BASE_DIR, 'encoder.pkl')
+
+    if os.path.exists(model_path) and os.path.exists(encoder_path):
+        with open(model_path, 'rb') as f:
             model = pickle.load(f)
-        with open('encoder.pkl', 'rb') as f:
+        with open(encoder_path, 'rb') as f:
             encoder = pickle.load(f)
     else:
         print("Model or encoder file not found.")
+
 except Exception as e:
     print("Error loading model:", e)
 
@@ -41,7 +53,7 @@ class User(UserMixin, db.Model):
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    return db.session.get(User, int(user_id))  # modern SQLAlchemy fix
 
 # -------------------- ROUTES --------------------
 
@@ -120,15 +132,23 @@ def dashboard():
     if request.method == 'POST':
         try:
             if model is None or encoder is None:
-                flash("Model not loaded. Please check model files.", "danger")
+                flash("Model not loaded properly.", "danger")
                 return redirect(url_for('dashboard'))
 
-            area = float(request.form.get('area') or 0)
-            bedrooms = int(request.form.get('bedrooms') or 0)
-            bathrooms = int(request.form.get('bathrooms') or 0)
+            area = request.form.get('area')
+            bedrooms = request.form.get('bedrooms')
+            bathrooms = request.form.get('bathrooms')
             location = request.form.get('location')
 
-            # Validate location
+            # Validate inputs
+            if not area or not bedrooms or not bathrooms or not location:
+                flash("Please fill all fields", "danger")
+                return redirect(url_for('dashboard'))
+
+            area = float(area)
+            bedrooms = int(bedrooms)
+            bathrooms = int(bathrooms)
+
             if location not in encoder.classes_:
                 flash("Invalid location selected", "danger")
                 return redirect(url_for('dashboard'))
@@ -138,11 +158,11 @@ def dashboard():
             features = np.array([[area, bedrooms, bathrooms, location_encoded]])
 
             predicted_price = model.predict(features)[0]
-            prediction = round(predicted_price, 2)
+            prediction = round(float(predicted_price), 2)
 
         except Exception as e:
             print("Prediction Error:", e)
-            flash("Error in prediction. Please check inputs.", "danger")
+            flash("Error in prediction. Check inputs.", "danger")
 
     locations = encoder.classes_ if encoder else []
     return render_template('dashboard.html', prediction=prediction, locations=locations)
