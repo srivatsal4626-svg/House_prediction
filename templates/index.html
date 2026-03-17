@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+
+{% block title %}Home - House Price Prediction{% endblock %}
+
+{% block content %}
+<div class="hero">
+    <div class="hero-content">
+        <h1 class="fade-in-up">Discover Your Property's True Value Let AI Guide You.</h1>
+        <p class="fade-in-up delay-1">Get highly accurate house price estimates instantly using advanced machine
+            learning models trained on robust real estate data.</p>
+        <div class="hero-actions fade-in-up delay-2">
+            {% if current_user.is_authenticated %}
+            <a href="{{ url_for('dashboard') }}" class="btn-primary btn-large">Go to Dashboard</a>
+            {% else %}
+            <a href="{{ url_for('register') }}" class="btn-primary btn-large">Get Started Now</a>
+            <a href="{{ url_for('login') }}" class="btn-outline btn-large">Login</a>
+            {% endif %}
+        </div>
+    </div>
+    <div class="hero-image">
+        <div class="mockup glass">
+            <h3>Predicted Price</h3>
+            <div class="price-val animate-pulse">₹450,200</div>
+            <div class="mockup-stats">
+                <span>4 Beds</span>
+                <span>3 Baths</span>
+                <span>2,500 sqft</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="features">
+    <div class="feature-card">
+        <div class="icon">📈</div>
+        <h3>High Accuracy</h3>
+        <p>Built with robust scikit-learn regression algorithms.</p>
+    </div>
+    <div class="feature-card">
+        <div class="icon">🔒</div>
+        <h3>Secure</h3>
+        <p>Your data is protected with state-of-the-art encryption.</p>
+    </div>
+    <div class="feature-card">
+        <div class="icon">⚡</div>
+        <h3>Instant Results</h3>
+        <p>Real-time predictions calculated in milliseconds.</p>
+    </div>
+</div>
+{% endblock %}
